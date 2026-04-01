@@ -1,0 +1,169 @@
+-- // SERVICIOS
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+-- // CONFIGURACIÓN
+local noclipActive = false
+local ghostActive = false
+local noclipSpeed = 1.0
+local currentKey = Enum.KeyCode.V
+local listeningForKey = false
+
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+
+-- // --- INTERFAZ --- //
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.new(0, 220, 0, 260) -- Más espacio para botones
+MainFrame.Position = UDim2.new(0.5, -110, 0.5, -130)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.Text = "ADVANCED EXECUTOR"
+Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+-- 1. BOTÓN NOCLIP
+local NoclipBtn = Instance.new("TextButton", MainFrame)
+NoclipBtn.Size = UDim2.new(0.9, 0, 0, 35)
+NoclipBtn.Position = UDim2.new(0.05, 0, 0.15, 0)
+NoclipBtn.Text = "NoClip: OFF"
+NoclipBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+
+-- 2. BOTÓN INVISIBILIDAD (GHOST)
+local GhostBtn = Instance.new("TextButton", MainFrame)
+GhostBtn.Size = UDim2.new(0.9, 0, 0, 35)
+GhostBtn.Position = UDim2.new(0.05, 0, 0.32, 0)
+GhostBtn.Text = "Ghost Mode: OFF"
+GhostBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+GhostBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+-- 3. BOTÓN BIND
+local BindBtn = Instance.new("TextButton", MainFrame)
+BindBtn.Size = UDim2.new(0.9, 0, 0, 35)
+BindBtn.Position = UDim2.new(0.05, 0, 0.50, 0)
+BindBtn.Text = "Bind: " .. currentKey.Name
+
+-- 4. SLIDER VELOCIDAD (Label + Bar)
+local SliderLabel = Instance.new("TextLabel", MainFrame)
+SliderLabel.Size = UDim2.new(0.9, 0, 0, 20)
+SliderLabel.Position = UDim2.new(0.05, 0, 0.70, 0)
+SliderLabel.Text = "Speed: 1.0x"
+SliderLabel.BackgroundTransparency = 1
+SliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+local SliderBack = Instance.new("Frame", MainFrame)
+SliderBack.Size = UDim2.new(0.8, 0, 0, 10)
+SliderBack.Position = UDim2.new(0.1, 0, 0.82, 0)
+SliderBack.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+
+local SliderBar = Instance.new("Frame", SliderBack)
+SliderBar.Size = UDim2.new(0.1, 0, 1, 0)
+SliderBar.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+
+-- // --- LÓGICA DE FUNCIONES --- //
+
+-- Restaurar colisiones (EL FIX QUE NECESITABAS)
+local function resetCollisions()
+    Character = LocalPlayer.Character
+    if not Character then return end
+    for _, part in pairs(Character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = true
+        end
+    end
+end
+
+-- Función Ghost
+local function updateGhost()
+    Character = LocalPlayer.Character
+    if not Character then return end
+    for _, part in pairs(Character:GetDescendants()) do
+        if part:IsA("BasePart") or part:IsA("Decal") then
+            part.Transparency = ghostActive and 0.7 or 0 -- 0.7 para que te veas un poco
+        end
+    end
+end
+
+-- Toggle Noclip
+NoclipBtn.MouseButton1Click:Connect(function()
+    noclipActive = not noclipActive
+    NoclipBtn.Text = noclipActive and "NoClip: ON" or "NoClip: OFF"
+    NoclipBtn.BackgroundColor3 = noclipActive and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
+    
+    if not noclipActive then
+        wait(0.1) -- Pequeña pausa para asegurar que el bucle se detuvo
+        resetCollisions()
+    end
+end)
+
+-- Toggle Ghost
+GhostBtn.MouseButton1Click:Connect(function()
+    ghostActive = not ghostActive
+    GhostBtn.Text = ghostActive and "Ghost: ON" or "Ghost: OFF"
+    GhostBtn.BackgroundColor3 = ghostActive and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(50, 50, 50)
+    updateGhost()
+end)
+
+-- Bucle de movimiento (Stepped)
+RunService.Stepped:Connect(function()
+    if noclipActive and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = LocalPlayer.Character.HumanoidRootPart
+        local hum = LocalPlayer.Character.Humanoid
+        
+        -- Desactivar colisiones mientras estás en noclip
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+        
+        -- Movimiento manual
+        if hum.MoveDirection.Magnitude > 0 then
+            hrp.CFrame = hrp.CFrame + (hum.MoveDirection * (0.5 * noclipSpeed))
+        end
+        hrp.Velocity = Vector3.new(0, 0, 0)
+    end
+end)
+
+-- Lógica del Slider (Simplificada)
+SliderBack.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        local moveConn
+        moveConn = UIS.InputChanged:Connect(function(moveInput)
+            if moveInput.UserInputType == Enum.UserInputType.MouseMovement then
+                local pos = math.clamp((moveInput.Position.X - SliderBack.AbsolutePosition.X) / SliderBack.AbsoluteSize.X, 0, 1)
+                SliderBar.Size = UDim2.new(pos, 0, 1, 0)
+                noclipSpeed = pos * 50 -- Máximo 50x
+                SliderLabel.Text = string.format("Speed: %.1fx", noclipSpeed)
+            end
+        end)
+        UIS.InputEnded:Connect(function(endInput)
+            if endInput.UserInputType == Enum.UserInputType.MouseButton1 then
+                moveConn:Disconnect()
+            end
+        end)
+    end
+end)
+
+-- Bind de tecla
+BindBtn.MouseButton1Click:Connect(function()
+    listeningForKey = true
+    BindBtn.Text = "..."
+end)
+
+UIS.InputBegan:Connect(function(input, proc)
+    if proc then return end
+    if listeningForKey then
+        currentKey = input.KeyCode
+        BindBtn.Text = "Bind: " .. currentKey.Name
+        listeningForKey = false
+    elseif input.KeyCode == currentKey then
+        NoclipBtn:Click() -- Simula el clic en el botón de Noclip
+    end
+end)
