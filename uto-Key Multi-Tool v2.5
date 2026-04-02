@@ -1,0 +1,133 @@
+-[[
+    Auto-Key Multi-Tool v2.5
+    Colaboración: [@itz_Nite] & Gemini AI
+]]
+
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local Title = Instance.new("TextLabel")
+local ToggleButton = Instance.new("TextButton")
+local SpeedInput = Instance.new("TextBox")
+local KeysInput = Instance.new("TextBox")
+local StatsLabel = Instance.new("TextLabel")
+local InfoLabel = Instance.new("TextLabel")
+
+-- Configuración de la UI
+ScreenGui.Parent = game.CoreGui
+MainFrame.Name = "AutoKey_Ultimate"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.Position = UDim2.new(0.1, 0, 0.4, 0)
+MainFrame.Size = UDim2.new(0, 220, 0, 240) -- Un poco más alto para la info
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+-- Título
+Title.Parent = MainFrame
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.Text = "AUTO-KEY ULTIMATE"
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+
+-- Inputs
+KeysInput.Parent = MainFrame
+KeysInput.PlaceholderText = "Teclas (E,Q,R)"
+KeysInput.Text = "E"
+KeysInput.Position = UDim2.new(0.1, 0, 0.18, 0)
+KeysInput.Size = UDim2.new(0.8, 0, 0, 30)
+KeysInput.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+KeysInput.TextColor3 = Color3.new(1, 1, 1)
+
+SpeedInput.Parent = MainFrame
+SpeedInput.PlaceholderText = "Velocidad (Segundos)"
+SpeedInput.Text = "0.05"
+SpeedInput.Position = UDim2.new(0.1, 0, 0.35, 0)
+SpeedInput.Size = UDim2.new(0.8, 0, 0, 30)
+SpeedInput.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+SpeedInput.TextColor3 = Color3.new(1, 1, 1)
+
+-- Botón Principal
+ToggleButton.Parent = MainFrame
+ToggleButton.Position = UDim2.new(0.1, 0, 0.52, 0)
+ToggleButton.Size = UDim2.new(0.8, 0, 0, 40)
+ToggleButton.Text = "ENCENDER"
+ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 160, 100)
+ToggleButton.TextColor3 = Color3.new(1, 1, 1)
+ToggleButton.Font = Enum.Font.SourceSansBold
+
+-- Stats y Shortcut Info
+StatsLabel.Parent = MainFrame
+StatsLabel.Position = UDim2.new(0, 0, 0.72, 0)
+StatsLabel.Size = UDim2.new(1, 0, 0, 30)
+StatsLabel.Text = "FPS: -- | CPS: 0"
+StatsLabel.TextColor3 = Color3.new(0.8, 0.8, 0.8)
+StatsLabel.BackgroundTransparency = 1
+
+InfoLabel.Parent = MainFrame
+InfoLabel.Position = UDim2.new(0, 0, 0.85, 0)
+InfoLabel.Size = UDim2.new(1, 0, 0, 25)
+InfoLabel.Text = "Presiona [Insert] para Ocultar"
+InfoLabel.TextColor3 = Color3.new(1, 1, 0.5)
+InfoLabel.TextSize = 12
+InfoLabel.BackgroundTransparency = 1
+
+--- LÓGICA ---
+local activo = false
+local visible = true
+local UserInputService = game:GetService("UserInputService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local RunService = game:GetService("RunService")
+local clicks = 0
+
+-- Función para ocultar con la tecla Insert
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.Insert then
+        visible = not visible
+        MainFrame.Visible = visible
+    end
+end)
+
+-- Parseador de teclas
+local function getKeys()
+    local t = {}
+    for key in string.gmatch(KeysInput.Text, "([^,]+)") do
+        local cleanKey = key:gsub("%s+", ""):upper()
+        pcall(function() table.insert(t, Enum.KeyCode[cleanKey]) end)
+    end
+    return t
+end
+
+-- Monitor de rendimiento
+spawn(function()
+    while task.wait(1) do
+        local fps = math.floor(1/RunService.RenderStepped:Wait())
+        StatsLabel.Text = "FPS: "..fps.." | CPS: "..clicks
+        clicks = 0
+    end
+end)
+
+ToggleButton.MouseButton1Click:Connect(function()
+    activo = not activo
+    ToggleButton.Text = activo and "APAGAR" or "ENCENDER"
+    ToggleButton.BackgroundColor3 = activo and Color3.fromRGB(200, 50, 50) or Color3.fromRGB(0, 160, 100)
+end)
+
+-- Bucle principal
+spawn(function()
+    while true do
+        if activo then
+            local delayTime = tonumber(SpeedInput.Text) or 0.05
+            local currentKeys = getKeys()
+            
+            for _, keyCode in pairs(currentKeys) do
+                VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
+                clicks = clicks + 1
+            end
+            task.wait(delayTime)
+            for _, keyCode in pairs(currentKeys) do
+                VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
+            end
+        end
+        RunService.Heartbeat:Wait()
+    end
+end)
